@@ -11,11 +11,11 @@ from telethon.sessions import StringSession
 from telethon.errors import FloodWaitError
 
 # ─── AYARLAR ────────────────────────────────────────────────────────────────
-API_ID       = int(os.environ.get("TELEGRAM_API_ID",   "37779851"))
-API_HASH     =     os.environ.get("TELEGRAM_API_HASH", "8766487030c013c270c33aed044dafb3")
-SESSION_STR  =     os.environ.get("TELEGRAM_SESSION",  "")
-CHAT_ID      =     os.environ.get("TELEGRAM_CHAT_ID",  "-5534830140")
-CHANNELS_RAW =     os.environ.get("KICK_CHANNELS",     "ilkerfirat,caglararts,swaggybark,erlizzy,jahrein")
+API_ID       = int(os.environ.get("TELEGRAM_API_ID", "0"))
+API_HASH     =     os.environ.get("TELEGRAM_API_HASH", "")
+SESSION_STR  =     os.environ.get("TELEGRAM_SESSION", "")
+CHAT_ID      =     os.environ.get("TELEGRAM_CHAT_ID", "")
+CHANNELS_RAW =     os.environ.get("KICK_CHANNELS", "")
 PORT         = int(os.environ.get("PORT",              10000))
 STREAM_QUALITY =   os.environ.get("STREAM_QUALITY",   "720p60,720p,best")
 SEGMENT_SECONDS= int(os.environ.get("SEGMENT_SECONDS", 2400))  # 40 dk
