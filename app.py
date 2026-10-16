@@ -6,6 +6,7 @@ import subprocess
 from aiohttp import web
 from telethon import TelegramClient
 from telethon.sessions import StringSession
+from telethon.errors import FloodWaitError
 
 # Environment Variables
 API_ID = int(os.environ.get("TELEGRAM_API_ID", "37779851"))
@@ -40,11 +41,11 @@ def is_stream_online(channel_name):
         return False
 
 async def upload_and_cleanup(file_path, channel_name, part_num, target_entity):
-    """Upload completed video segment to Telegram and remove locally."""
+    """Upload completed video segment to Telegram with FloodWait handling."""
     print(f"[{channel_name}] Telegram'a yükleniyor: {file_path}")
     caption = f"🎬 #{channel_name} Canlı Yayın Kaydı\n📁 Parça {part_num}\n⏱ Tarih: {time.strftime('%d.%m.%Y %H:%M')}"
     
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             await client.send_file(
                 target_entity,
@@ -57,6 +58,9 @@ async def upload_and_cleanup(file_path, channel_name, part_num, target_entity):
                 os.remove(file_path)
                 print(f"[{channel_name}] Dosya diskten temizlendi: {file_path}")
             return True
+        except FloodWaitError as e:
+            print(f"[{channel_name}] Telegram FloodWait uyarısı! {e.seconds} saniye bekleniyor...")
+            await asyncio.sleep(e.seconds + 2)
         except Exception as e:
             print(f"[{channel_name}] Yükleme denemesi {attempt+1} başarısız ({file_path}): {e}")
             await asyncio.sleep(10)
