@@ -22,6 +22,8 @@ SEGMENT_SECONDS= int(os.environ.get("SEGMENT_SECONDS", 2400))  # 40 dk
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL",  60))
 # Disk doluysa yeni kayıt başlatma (GB cinsinden)
 MIN_FREE_DISK_GB = float(os.environ.get("MIN_FREE_DISK_GB", "3.0"))
+IGNORE_STREAM_IDS_RAW = os.environ.get("IGNORE_STREAM_IDS", "")
+ignored_stream_ids = set(x.strip() for x in IGNORE_STREAM_IDS_RAW.split(",") if x.strip())
 
 TARGET_CHANNELS = [ch.strip() for ch in CHANNELS_RAW.split(",") if ch.strip()]
 
@@ -289,6 +291,14 @@ async def monitor_loop():
                 is_live, info = await is_stream_online(ch)
 
                 if is_live:
+                    stream_id = str(info.get("id", ""))
+                    if stream_id in ignored_stream_ids:
+                        status_text = "⏭ Yayın Atlandı (Aktif Yayın)"
+                        if channel_status.get(ch) != status_text:
+                            channel_status[ch] = status_text
+                            print(f"[MONITOR] #{ch} yayını atlandı (ID: {stream_id})")
+                        continue
+
                     print(f"[MONITOR] 🔴 {ch} yayında! Kayıt başlatılıyor...")
                     asyncio.create_task(record_channel(ch, info))
                 else:
@@ -348,7 +358,25 @@ async def start_telegram():
             f"Boş: {free // (1024**3)} GB"
         )
 
-    print("[TG] Komutlar aktif: /durum /liste /disk")
+    @client.on(events.NewMessage(chats=target_entity, pattern=r'^/esgec(?:\s+(\w+))?$'))
+    async def cmd_skip(event):
+        ch = event.pattern_match.group(1)
+        if not ch:
+            await event.reply("Kullanım: `/esgec kanal_adi` (Örn: `/esgec burhi`)")
+            return
+        is_live, info = await is_stream_online(ch)
+        if is_live and info.get("id"):
+            ignored_stream_ids.add(str(info["id"]))
+            if ch in active_recordings:
+                try:
+                    os.killpg(os.getpgid(active_recordings[ch]["process"].pid), signal.SIGTERM)
+                except Exception:
+                    pass
+            await event.reply(f"✅ #{ch} kanalının şu anki yayını (ID: {info['id']}) atlandı. Bir sonraki yeni yayını kaydedilecek.")
+        else:
+            await event.reply(f"#{ch} şu an yayında görünmüyor.")
+
+    print("[TG] Komutlar aktif: /durum /liste /disk /esgec")
 
 # ─── WEB SUNUCUSU ────────────────────────────────────────────────────────────
 async def handle_index(request):
@@ -367,7 +395,7 @@ async def handle_index(request):
         else:
             lines.append(f"<li><b>{ch}</b>: {st}</li>")
     lines.append("</ul>")
-    lines.append("<p style='color:gray;font-size:12px'>Telegram komutları: /durum /liste /disk</p>")
+    lines.append("<p style='color:gray;font-size:12px'>Telegram komutları: /durum /liste /disk /esgec &lt;kanal&gt;</p>")
     return web.Response(text="\n".join(lines), content_type="text/html")
 
 async def init_web_app():
