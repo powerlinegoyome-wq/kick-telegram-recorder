@@ -16,8 +16,9 @@ CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "-5534830140")
 CHANNELS_RAW = os.environ.get("KICK_CHANNELS", "ilkerfirat,caglararts,swaggybark,erlizzy,jahrein")
 TARGET_CHANNELS = [ch.strip() for ch in CHANNELS_RAW.split(",") if ch.strip()]
 PORT = int(os.environ.get("PORT", 10000))
+STREAM_QUALITY = os.environ.get("STREAM_QUALITY", "720p60,720p,best")
 
-# Segment duration in seconds (2400 sec = 40 min = ~1.5-1.8 GB on 1080p60)
+# Segment duration in seconds (2400 sec = 40 min = ~1.0-1.5 GB)
 SEGMENT_SECONDS = int(os.environ.get("SEGMENT_SECONDS", 2400))
 CHECK_INTERVAL = int(os.environ.get("CHECK_INTERVAL", 60))
 
@@ -75,7 +76,7 @@ async def record_channel(channel_name, target_entity):
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     out_pattern = f"{channel_name}_{timestamp}_part%03d.mp4"
-    print(f"🔴 [{channel_name}] Yayın başladı! Kayıt alınıyor -> {out_pattern}")
+    print(f"🔴 [{channel_name}] Yayın başladı! Kayıt alınıyor (Kalite: {STREAM_QUALITY}) -> {out_pattern}")
 
     try:
         await client.send_message(
@@ -86,7 +87,7 @@ async def record_channel(channel_name, target_entity):
         print(f"Telegram bildirim hatası: {e}")
 
     cmd = (
-        f"streamlink --stdout https://kick.com/{channel_name} best | "
+        f"streamlink --stdout https://kick.com/{channel_name} {STREAM_QUALITY} | "
         f"ffmpeg -i pipe:0 -c copy -f segment -segment_time {SEGMENT_SECONDS} -reset_timestamps 1 {out_pattern}"
     )
 
@@ -134,7 +135,7 @@ async def record_channel(channel_name, target_entity):
         channel_status[channel_name] = "Beklemede"
 
 async def monitor_loop():
-    """Main background loop monitoring all Kick channels."""
+    """Main background loop monitoring assigned Kick channels."""
     global client
     print("Telethon istemcisi başlatılıyor...")
     client = TelegramClient(StringSession(SESSION_STR), API_ID, API_HASH)
@@ -149,7 +150,7 @@ async def monitor_loop():
         print(f"Hedef kanal çözümleme hatası ({CHAT_ID}): {e}")
         target_entity = CHAT_ID
 
-    print("Kick Takip Döngüsü Aktif!")
+    print(f"Kick Takip Döngüsü Aktif! Takip edilenler: {TARGET_CHANNELS}")
     while True:
         try:
             for ch in TARGET_CHANNELS:
@@ -164,7 +165,7 @@ async def monitor_loop():
 async def handle_ping(request):
     """HTTP endpoint to keep the container awake via UptimeRobot."""
     html_content = "<h2>🤖 Kick Stream Telegram Recorder</h2>"
-    html_content += "<p>Durum: <b>7/24 Aktif</b></p><ul>"
+    html_content += f"<p>Kalite: <b>{STREAM_QUALITY}</b> | Durum: <b>7/24 Aktif</b></p><ul>"
     for ch, st in channel_status.items():
         html_content += f"<li><b>{ch}</b>: {st}</li>"
     html_content += "</ul>"
